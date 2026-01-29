@@ -9,25 +9,25 @@ contract MockERC20 {
     string public name = "Mock Token";
     string public symbol = "MOCK";
     uint8 public decimals = 18;
-    
+
     mapping(address => uint256) public balanceOf;
     mapping(address => mapping(address => uint256)) public allowance;
-    
+
     function mint(address to, uint256 amount) external {
         balanceOf[to] += amount;
     }
-    
+
     function approve(address spender, uint256 amount) external returns (bool) {
         allowance[msg.sender][spender] = amount;
         return true;
     }
-    
+
     function transfer(address to, uint256 amount) external returns (bool) {
         balanceOf[msg.sender] -= amount;
         balanceOf[to] += amount;
         return true;
     }
-    
+
     function transferFrom(address from, address to, uint256 amount) external returns (bool) {
         allowance[from][msg.sender] -= amount;
         balanceOf[from] -= amount;
@@ -111,15 +111,15 @@ contract EmberLotteryERC20Test is Test {
         // Approve EXACT amount (not infinite)
         vm.startPrank(alice);
         token.approve(address(lottery), cost);
-        
+
         // Verify allowance is exact
         assertEq(token.allowance(alice, address(lottery)), cost);
-        
+
         lottery.buyTickets(1);
         vm.stopPrank();
 
         assertEq(lottery.getTicketCount(1, alice), 1);
-        
+
         // Allowance should be 0 after (spent exactly)
         assertEq(token.allowance(alice, address(lottery)), 0);
     }
