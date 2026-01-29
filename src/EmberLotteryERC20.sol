@@ -98,7 +98,7 @@ contract EmberLotteryERC20 is Ownable, ReentrancyGuard {
      */
     function buyTickets(uint256 _ticketCount) external nonReentrant {
         if (_ticketCount == 0) revert ZeroAmount();
-        
+
         Lottery storage lottery = lotteries[currentLotteryId];
 
         if (lottery.endTime == 0 || block.timestamp >= lottery.endTime) revert LotteryNotActive();
@@ -139,11 +139,7 @@ contract EmberLotteryERC20 is Ownable, ReentrancyGuard {
 
         // Simple randomness (use Chainlink VRF for production)
         uint256 randomIndex = uint256(
-            keccak256(abi.encodePacked(
-                blockhash(block.number - 1),
-                block.timestamp,
-                lottery.participants.length
-            ))
+            keccak256(abi.encodePacked(blockhash(block.number - 1), block.timestamp, lottery.participants.length))
         ) % lottery.participants.length;
 
         address winner = lottery.participants[randomIndex];
