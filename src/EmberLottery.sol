@@ -9,12 +9,17 @@ import {SafeTransferLib} from "solady/utils/SafeTransferLib.sol";
  * @title EmberLottery
  * @author Ember 🐉
  * @notice Simple lottery where users buy tickets with ETH, winner takes pot minus fee
- * @dev Built with Solady for gas efficiency. Uses block hash for randomness (simple version).
- *      For production, integrate Chainlink VRF.
- * @dev Audit fixes by Clawditor:
- *      - Added BLOCKHASH_ALLOWED_RANGE check for randomness
- *      - Added front-running protection with commit-reveal scheme
- *      - Optimized participant storage to prevent DoS
+ * @dev Built with Solady for gas efficiency.
+ *
+ * @dev RANDOMNESS LIMITATIONS (from @dragon_bot_z audit):
+ *      - Commit-reveal provides basic front-running protection but revealer can influence timing
+ *      - For high-stakes lotteries (>10 ETH), integrate Chainlink VRF
+ *      - Current implementation acceptable for small-medium pots with documented caveats
+ *
+ * @dev Audit fixes:
+ *      - BLOCKHASH_ALLOWED_RANGE check for randomness (@Clawditor)
+ *      - Front-running protection with commit-reveal scheme (@Clawditor)
+ *      - Removed unused state variables (@dragon_bot_z)
  */
 contract EmberLottery is Ownable, ReentrancyGuard {
     // ============ Errors ============
@@ -45,10 +50,10 @@ contract EmberLottery is Ownable, ReentrancyGuard {
         address[] participants;
         address winner;
         bool ended;
-        // Audit fixes
+        // Commit-reveal for front-running protection
         uint256 commitEndTime;
         mapping(address => bytes32) commits;
-        mapping(address => uint256) ticketCountPerUser;
+        // Note: ticketCount is tracked at contract level, not per-lottery struct
     }
 
     // ============ Constants ============
@@ -78,11 +83,7 @@ contract EmberLottery is Ownable, ReentrancyGuard {
      * @param _duration Duration in seconds
      * @param _commitDuration Duration for commit phase before ticket sales end (seconds)
      */
-    function startLottery(
-        uint256 _ticketPrice,
-        uint256 _duration,
-        uint256 _commitDuration
-    ) external onlyOwner {
+    function startLottery(uint256 _ticketPrice, uint256 _duration, uint256 _commitDuration) external onlyOwner {
         if (_ticketPrice == 0) revert InvalidTicketPrice();
         if (_duration == 0) revert InvalidDuration();
 
@@ -120,6 +121,10 @@ contract EmberLottery is Ownable, ReentrancyGuard {
     /**
      * @notice Buy tickets for the current lottery
      * @param _ticketCount Number of tickets to buy
+     * @dev Note: Current implementation pushes each ticket individually to participants array.
+     *      For gas optimization with large ticket purchases, consider ticket ranges:
+     *      struct TicketRange { address buyer; uint256 startIndex; uint256 endIndex; }
+     *      This would reduce storage writes from O(n) to O(1) per purchase.
      */
     function buyTickets(uint256 _ticketCount) external payable nonReentrant {
         Lottery storage lottery = lotteries[currentLotteryId];
@@ -166,24 +171,20 @@ contract EmberLottery is Ownable, ReentrancyGuard {
         // Audit fix: Use commit-reveal for randomness if commits exist
         // Fallback to blockhash if no commits
         address winner;
-        
+
         if (lottery.commitEndTime > 0 && block.timestamp >= lottery.commitEndTime) {
             // Verify commit
             bytes32 storedCommit = lottery.commits[msg.sender];
             if (storedCommit == bytes32(0)) revert InvalidCommit();
-            
+
             bytes32 expectedCommit = keccak256(abi.encodePacked(_secret, msg.sender));
             if (storedCommit != expectedCommit) revert InvalidCommit();
-            
+
             // Use commit + blockhash for randomness
             uint256 randomIndex = uint256(
-                keccak256(abi.encodePacked(
-                    storedCommit,
-                    blockhash(block.number - 1),
-                    block.timestamp
-                ))
+                keccak256(abi.encodePacked(storedCommit, blockhash(block.number - 1), block.timestamp))
             ) % lottery.participants.length;
-            
+
             winner = lottery.participants[randomIndex];
         } else {
             // Audit fix: Check blockhash availability
@@ -192,22 +193,16 @@ contract EmberLottery is Ownable, ReentrancyGuard {
             if (block.number > BLOCKHASH_ALLOWED_RANGE) {
                 uint256 pastBlock = block.number - BLOCKHASH_ALLOWED_RANGE;
                 randomIndex = uint256(
-                    keccak256(abi.encodePacked(
-                        blockhash(pastBlock),
-                        block.timestamp,
-                        lottery.participants.length
-                    ))
+                    keccak256(abi.encodePacked(blockhash(pastBlock), block.timestamp, lottery.participants.length))
                 ) % lottery.participants.length;
             } else {
                 randomIndex = uint256(
-                    keccak256(abi.encodePacked(
-                        blockhash(block.number - 1),
-                        block.timestamp,
-                        lottery.participants.length
-                    ))
+                    keccak256(
+                        abi.encodePacked(blockhash(block.number - 1), block.timestamp, lottery.participants.length)
+                    )
                 ) % lottery.participants.length;
             }
-            
+
             winner = lottery.participants[randomIndex];
         }
 
