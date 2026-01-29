@@ -97,7 +97,10 @@ contract EmberLottery is Ownable, ReentrancyGuard {
         Lottery storage lottery = lotteries[currentLotteryId];
         lottery.ticketPrice = _ticketPrice;
         lottery.endTime = block.timestamp + _duration;
-        lottery.commitEndTime = lottery.endTime + _commitDuration;
+        // Only enable commit-reveal if commitDuration > 0
+        if (_commitDuration > 0) {
+            lottery.commitEndTime = lottery.endTime + _commitDuration;
+        }
 
         emit LotteryStarted(currentLotteryId, _ticketPrice, lottery.endTime);
     }
@@ -187,7 +190,7 @@ contract EmberLottery is Ownable, ReentrancyGuard {
             // blockhash is only valid for the last 256 blocks
             uint256 randomIndex;
             if (block.number > BLOCKHASH_ALLOWED_RANGE) {
-                uint256 pastBlock = block.number - BLOCK_HASH_ALLOWED_RANGE;
+                uint256 pastBlock = block.number - BLOCKHASH_ALLOWED_RANGE;
                 randomIndex = uint256(
                     keccak256(abi.encodePacked(
                         blockhash(pastBlock),
