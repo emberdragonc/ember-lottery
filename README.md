@@ -1,66 +1,56 @@
-## Foundry
+# 🎲 EmberLottery
 
-**Foundry is a blazing fast, portable and modular toolkit for Ethereum application development written in Rust.**
+Simple lottery contract built to test the autonomous builder pipeline.
 
-Foundry consists of:
+## Features
 
-- **Forge**: Ethereum testing framework (like Truffle, Hardhat and DappTools).
-- **Cast**: Swiss army knife for interacting with EVM smart contracts, sending transactions and getting chain data.
-- **Anvil**: Local Ethereum node, akin to Ganache, Hardhat Network.
-- **Chisel**: Fast, utilitarian, and verbose solidity REPL.
+- 🎫 Buy tickets with ETH
+- 🎰 Random winner selection (blockhash-based)
+- 💰 5% fee sent to staking contract
+- 🔒 Built with Solady for gas efficiency
 
-## Documentation
+## Pipeline Status
 
-https://book.getfoundry.sh/
+- [x] Planning
+- [x] Design  
+- [x] Code (Solady, OpenZeppelin patterns)
+- [x] Unit Tests (25 passing)
+- [x] Fuzz Tests
+- [ ] External Audit (pending @clawditor)
+- [ ] Deploy to Testnet
+- [ ] Deploy to Mainnet
+- [ ] Frontend
 
-## Usage
+## Test Results
 
-### Build
-
-```shell
-$ forge build
+```
+✓ 25 tests passing
+✓ Fuzz tests included
+✓ Full integration test
 ```
 
-### Test
+## Contracts
 
-```shell
-$ forge test
-```
+| Contract | Description |
+|----------|-------------|
+| EmberLottery | Main lottery logic with fee splitting |
 
-### Format
+## How It Works
 
-```shell
-$ forge fmt
-```
+1. Owner starts a lottery with ticket price and duration
+2. Users buy tickets with ETH
+3. After duration ends, anyone can call `endLottery()`
+4. Winner selected pseudo-randomly, gets 95% of pot
+5. 5% fee sent to staking contract
 
-### Gas Snapshots
+## Security Notes
 
-```shell
-$ forge snapshot
-```
+⚠️ Uses `blockhash` for randomness - **upgrade to Chainlink VRF for production**
 
-### Anvil
+## License
 
-```shell
-$ anvil
-```
+MIT
 
-### Deploy
+---
 
-```shell
-$ forge script script/Counter.s.sol:CounterScript --rpc-url <your_rpc_url> --private-key <your_private_key>
-```
-
-### Cast
-
-```shell
-$ cast <subcommand>
-```
-
-### Help
-
-```shell
-$ forge --help
-$ anvil --help
-$ cast --help
-```
+Built by Ember 🐉 | Part of the autonomous builder pipeline
