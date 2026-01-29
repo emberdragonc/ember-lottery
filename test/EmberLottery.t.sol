@@ -49,7 +49,7 @@ contract EmberLotteryTest is Test {
         vm.expectEmit(true, false, false, true);
         emit LotteryStarted(1, TICKET_PRICE, block.timestamp + DURATION);
 
-        lottery.startLottery(TICKET_PRICE, DURATION);
+        lottery.startLottery(TICKET_PRICE, DURATION, 0);
 
         assertEq(lottery.currentLotteryId(), 1);
         assertTrue(lottery.isLotteryActive());
@@ -63,30 +63,30 @@ contract EmberLotteryTest is Test {
     function test_startLottery_revertNotOwner() public {
         vm.prank(alice);
         vm.expectRevert();
-        lottery.startLottery(TICKET_PRICE, DURATION);
+        lottery.startLottery(TICKET_PRICE, DURATION, 0);
     }
 
     function test_startLottery_revertZeroPrice() public {
         vm.expectRevert(EmberLottery.InvalidTicketPrice.selector);
-        lottery.startLottery(0, DURATION);
+        lottery.startLottery(0, DURATION, 0);
     }
 
     function test_startLottery_revertZeroDuration() public {
         vm.expectRevert(EmberLottery.InvalidDuration.selector);
-        lottery.startLottery(TICKET_PRICE, 0);
+        lottery.startLottery(TICKET_PRICE, 0, 0);
     }
 
     function test_startLottery_revertWhileActive() public {
-        lottery.startLottery(TICKET_PRICE, DURATION);
+        lottery.startLottery(TICKET_PRICE, DURATION, 0);
 
         vm.expectRevert(EmberLottery.LotteryAlreadyActive.selector);
-        lottery.startLottery(TICKET_PRICE, DURATION);
+        lottery.startLottery(TICKET_PRICE, DURATION, 0);
     }
 
     // ============ Buy Tickets Tests ============
 
     function test_buyTickets_single() public {
-        lottery.startLottery(TICKET_PRICE, DURATION);
+        lottery.startLottery(TICKET_PRICE, DURATION, 0);
 
         vm.prank(alice);
         vm.expectEmit(true, true, false, true);
@@ -101,7 +101,7 @@ contract EmberLotteryTest is Test {
     }
 
     function test_buyTickets_multiple() public {
-        lottery.startLottery(TICKET_PRICE, DURATION);
+        lottery.startLottery(TICKET_PRICE, DURATION, 0);
 
         vm.prank(alice);
         lottery.buyTickets{value: 5 * TICKET_PRICE}(5);
@@ -116,7 +116,7 @@ contract EmberLotteryTest is Test {
     }
 
     function test_buyTickets_multipleUsers() public {
-        lottery.startLottery(TICKET_PRICE, DURATION);
+        lottery.startLottery(TICKET_PRICE, DURATION, 0);
 
         vm.prank(alice);
         lottery.buyTickets{value: 2 * TICKET_PRICE}(2);
@@ -133,7 +133,7 @@ contract EmberLotteryTest is Test {
     }
 
     function test_buyTickets_refundsExcess() public {
-        lottery.startLottery(TICKET_PRICE, DURATION);
+        lottery.startLottery(TICKET_PRICE, DURATION, 0);
 
         uint256 balanceBefore = alice.balance;
 
@@ -151,7 +151,7 @@ contract EmberLotteryTest is Test {
     }
 
     function test_buyTickets_revertAfterEnd() public {
-        lottery.startLottery(TICKET_PRICE, DURATION);
+        lottery.startLottery(TICKET_PRICE, DURATION, 0);
 
         vm.warp(block.timestamp + DURATION + 1);
 
@@ -161,7 +161,7 @@ contract EmberLotteryTest is Test {
     }
 
     function test_buyTickets_revertInsufficientPayment() public {
-        lottery.startLottery(TICKET_PRICE, DURATION);
+        lottery.startLottery(TICKET_PRICE, DURATION, 0);
 
         vm.prank(alice);
         vm.expectRevert(EmberLottery.InsufficientPayment.selector);
@@ -171,7 +171,7 @@ contract EmberLotteryTest is Test {
     // ============ End Lottery Tests ============
 
     function test_endLottery_selectsWinner() public {
-        lottery.startLottery(TICKET_PRICE, DURATION);
+        lottery.startLottery(TICKET_PRICE, DURATION, 0);
 
         vm.prank(alice);
         lottery.buyTickets{value: TICKET_PRICE}(1);
@@ -186,7 +186,7 @@ contract EmberLotteryTest is Test {
         uint256 feeRecipientBalanceBefore = feeRecipient.balance;
 
         vm.warp(block.timestamp + DURATION + 1);
-        lottery.endLottery();
+        lottery.endLottery("");
 
         // Check fee was sent
         assertEq(feeRecipient.balance - feeRecipientBalanceBefore, expectedFee);
@@ -198,13 +198,13 @@ contract EmberLotteryTest is Test {
     }
 
     function test_endLottery_noParticipants() public {
-        lottery.startLottery(TICKET_PRICE, DURATION);
+        lottery.startLottery(TICKET_PRICE, DURATION, 0);
 
         vm.warp(block.timestamp + DURATION + 1);
 
         vm.expectEmit(true, true, false, true);
         emit WinnerSelected(1, address(0), 0);
-        lottery.endLottery();
+        lottery.endLottery("");
 
         (,,,, address winner, bool ended) = lottery.getLotteryInfo(1);
         assertTrue(ended);
@@ -212,23 +212,23 @@ contract EmberLotteryTest is Test {
     }
 
     function test_endLottery_revertNotEnded() public {
-        lottery.startLottery(TICKET_PRICE, DURATION);
+        lottery.startLottery(TICKET_PRICE, DURATION, 0);
 
         vm.expectRevert(EmberLottery.LotteryNotEnded.selector);
-        lottery.endLottery();
+        lottery.endLottery("");
     }
 
     function test_endLottery_revertAlreadyEnded() public {
-        lottery.startLottery(TICKET_PRICE, DURATION);
+        lottery.startLottery(TICKET_PRICE, DURATION, 0);
 
         vm.prank(alice);
         lottery.buyTickets{value: TICKET_PRICE}(1);
 
         vm.warp(block.timestamp + DURATION + 1);
-        lottery.endLottery();
+        lottery.endLottery("");
 
         vm.expectRevert(EmberLottery.LotteryNotActive.selector);
-        lottery.endLottery();
+        lottery.endLottery("");
     }
 
     // ============ Admin Tests ============
@@ -255,7 +255,7 @@ contract EmberLotteryTest is Test {
     function test_isLotteryActive() public {
         assertFalse(lottery.isLotteryActive());
 
-        lottery.startLottery(TICKET_PRICE, DURATION);
+        lottery.startLottery(TICKET_PRICE, DURATION, 0);
         assertTrue(lottery.isLotteryActive());
 
         vm.warp(block.timestamp + DURATION + 1);
@@ -267,7 +267,7 @@ contract EmberLotteryTest is Test {
     function testFuzz_buyTickets(uint256 ticketCount) public {
         vm.assume(ticketCount > 0 && ticketCount <= 100);
 
-        lottery.startLottery(TICKET_PRICE, DURATION);
+        lottery.startLottery(TICKET_PRICE, DURATION, 0);
 
         uint256 cost = TICKET_PRICE * ticketCount;
         vm.deal(alice, cost);
@@ -282,7 +282,7 @@ contract EmberLotteryTest is Test {
         vm.assume(ticketPrice > 0 && ticketPrice <= 100 ether);
         vm.assume(duration > 0 && duration <= 365 days);
 
-        lottery.startLottery(ticketPrice, duration);
+        lottery.startLottery(ticketPrice, duration, 0);
 
         (uint256 storedPrice, uint256 endTime,,,,) = lottery.getLotteryInfo(1);
         assertEq(storedPrice, ticketPrice);
@@ -293,7 +293,7 @@ contract EmberLotteryTest is Test {
 
     function test_fullLotteryFlow() public {
         // Start lottery
-        lottery.startLottery(TICKET_PRICE, DURATION);
+        lottery.startLottery(TICKET_PRICE, DURATION, 0);
 
         // Multiple users buy tickets
         vm.prank(alice);
@@ -322,7 +322,7 @@ contract EmberLotteryTest is Test {
         uint256 charlieBalBefore = charlie.balance;
         uint256 feeBalBefore = feeRecipient.balance;
 
-        lottery.endLottery();
+        lottery.endLottery("");
 
         // Verify fee sent
         assertEq(feeRecipient.balance - feeBalBefore, expectedFee);
